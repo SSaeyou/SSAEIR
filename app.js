@@ -396,11 +396,11 @@ function clearPhoto() {
 function handlePhoto(event) {
   const file = event.target.files?.[0];
   if (!file) return;
-  const validType = ["image/jpeg", "image/png", "image/webp"].includes(file.type);
-  const validExt = /\.(jpe?g|png|webp)$/i.test(file.name);
+  const validType = ["image/jpeg", "image/png"].includes(file.type);
+  const validExt = /\.(jpe?g|png)$/i.test(file.name);
   if (!validType || !validExt || file.size > 15 * 1024 * 1024) {
     event.target.value = "";
-    $("#start-error").textContent = "JPEG, PNG, WebP 파일 한 장을 15MB 이하로 선택해 주세요. HEIC·HEIF 사진은 JPEG로 변환해 주세요.";
+    $("#start-error").textContent = "JPEG 또는 PNG 사진 한 장을 15MB 이하로 선택해 주세요.";
     $("#start-error").hidden = false;
     return;
   }
@@ -419,7 +419,7 @@ function handlePhoto(event) {
   image.onerror = () => {
     URL.revokeObjectURL(candidate);
     event.target.value = "";
-    $("#start-error").textContent = "이 사진을 열 수 없어요. JPEG, PNG, WebP 파일을 다시 선택해 주세요.";
+    $("#start-error").textContent = "이 사진을 열 수 없어요. 다른 JPEG 또는 PNG 사진을 선택해 주세요.";
     $("#start-error").hidden = false;
   };
   image.src = candidate;
