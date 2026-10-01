@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.googletagmanager.com; style-src 'self'; img-src 'self' blob: data: https://www.google-analytics.com; connect-src 'self' https://www.google-analytics.com https://region1.google-analytics.com https://www.googletagmanager.com; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
-  <title>SSAEIR 쎄어 | 미용실에서 말할 내용 정리</title>
+  <title>SSAEIR | 미용실에서 말할 내용 정리</title>
   <link rel="stylesheet" href="./styles.css">
   <script src="./site-config.js" defer></script>
   <script src="./analytics.js" defer></script>
@@ -14,28 +14,35 @@
 <body>
   <div class="site-shell">
     <header class="site-header">
-      <div class="brand" aria-label="SSAEIR 쎄어">SSAEIR <span>쎄어</span></div>
+      <a class="brand brand-link" href="./index.html" aria-label="SSAEIR 첫 화면으로">SSAEIR</a>
       <p>원하는 머리를 말하기 쉽게 정리해요</p>
     </header>
 
     <main id="main">
-      <nav class="steps" aria-label="진행 단계">
+      <section id="step-home" class="screen home-screen" aria-labelledby="home-title">
+        <div class="home-hero">
+          <p class="eyebrow">SSAEIR</p>
+          <h1 id="home-title" tabindex="-1">미용실에서 하고 싶은 말을 정리해 보세요.</h1>
+          <p>원하는 스타일을 골라두면, 미용실에서 보여주거나 읽을 수 있는 요청문으로 정리해 드려요.</p>
+          <button id="home-start" class="button button-primary" type="button">요청서 만들기</button>
+        </div>
+        <div class="home-info">
+          <h2>이렇게 사용해요</h2>
+          <ol><li>시술을 고르고</li><li>원하는 부분과 피하고 싶은 부분을 선택한 뒤</li><li>완성된 문장을 확인하세요.</li></ol>
+          <p>사진은 선택 사항이에요. 선택한 사진과 작성 내용은 서버로 보내지 않아요.</p>
+        </div>
+      </section>
+      <nav class="steps" aria-label="진행 단계" hidden>
         <span class="step is-current" data-step-indicator="1" aria-current="step">1. 시작하기</span>
         <span class="step" data-step-indicator="2">2. 스타일 정리</span>
         <span class="step" data-step-indicator="3">3. 결과 확인</span>
       </nav>
 
-      <section id="step-start" class="screen" aria-labelledby="start-title">
+      <section id="step-start" class="screen" aria-labelledby="start-title" hidden>
         <div class="screen-intro">
           <p class="eyebrow">STEP 01</p>
           <h1 id="start-title" tabindex="-1">어떤 시술을 생각하고 계세요?</h1>
           <p>해당하는 것만 골라주세요. 여러 시술을 함께 선택할 수 있어요.</p>
-        </div>
-
-        <div class="flow-graphic" aria-label="시술 선택, 원하는 부분 정리, 말할 내용 확인의 세 단계">
-          <div><span class="flow-number">01</span><strong>시술 고르기</strong><span>커트 · 펌 · 다운펌</span></div>
-          <div><span class="flow-number">02</span><strong>원하는 부분 정리</strong><span>필요한 항목만 선택</span></div>
-          <div><span class="flow-number">03</span><strong>말할 내용 확인</strong><span>짧은 요청문으로 정리</span></div>
         </div>
 
         <div class="card">

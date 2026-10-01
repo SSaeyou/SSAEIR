@@ -15,7 +15,7 @@ let openPanel = "";
 let previousContext = "";
 
 // label은 화면용, speech는 미용실에서 읽을 문장용입니다.
-const choice = (key, label, speech, graphic = "", caption = "") => ({key, label, speech, graphic, caption});
+const choice = (key, label, speech) => ({key, label, speech});
 const avoidGroups = [
   {id:"commonCut", title:"공통 · 커트", service:"cut", items:[
     {id:"tooShort", label:"너무 짧게 자르지 않기", speech:"전체 길이를 너무 짧게 자르지는 말아주세요.", topic:"cutLength", short:"너무 짧게 자르지는 말아주세요."},
@@ -180,64 +180,27 @@ function particle(word) {
   const jong = code >= 0xac00 && code <= 0xd7a3 ? (code - 0xac00) % 28 : 0;
   return jong && jong !== 8 ? "으로" : "로";
 }
-function graphicSvg(kind, key) {
-  const index = {short:0, medium:1, long:2, small:0, large:2, natural:0, normal:1, clear:2,
-    down:0, side:1, light:2, none:0, many:2, root:0, end:2, low:0, high:2}[key] ?? 1;
-  const line = (d, width = 4) => `<path d="${d}" fill="none" stroke="currentColor" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"/>`;
-  let art = "";
-  if (kind === "length") art = `<circle cx="44" cy="20" r="10" fill="none" stroke="currentColor" stroke-width="3"/>` + line(`M30 23 V${38 + index * 12} M58 23 V${38 + index * 12}`) + line(`M30 ${38 + index * 12} Q44 ${47 + index * 12} 58 ${38 + index * 12}`, 3);
-  if (kind === "curl" || kind === "strength") {
-    const amp = kind === "strength" ? 7 + index * 5 : 12;
-    const waves = kind === "curl" ? 5 - index : 4;
-    let d = "M8 38";
-    for (let n = 0; n < waves; n++) d += ` Q${8 + (n + .5) * 72 / waves} ${38 - amp} ${8 + (n + 1) * 72 / waves} 38`;
-    art = line(d, 4) + line("M8 54 H80", 2);
-  }
-  if (kind === "fringe") art = `<circle cx="44" cy="34" r="22" fill="none" stroke="currentColor" stroke-width="3"/>` +
-    line(index === 1 ? "M24 25 Q46 17 63 34" : index === 2 ? "M22 27 Q33 17 43 28 Q54 18 65 27" : "M23 25 Q44 35 65 25");
-  if (kind === "layers") art = [0,1,2].map((n) => line(`M${20 + n * 7} ${22 + n * 14} H${68 - n * 7}`, n <= index ? 5 : 2)).join("");
-  if (kind === "volume") art = `<circle cx="44" cy="37" r="19" fill="none" stroke="currentColor" stroke-width="3"/>` +
-    line(index === 0 ? "M30 15 Q44 1 58 15" : index === 1 ? "M20 25 Q5 37 20 49 M68 25 Q83 37 68 49" : "M28 58 Q44 70 60 58");
-  if (kind === "lift") art = `<circle cx="44" cy="34" r="19" fill="none" stroke="currentColor" stroke-width="3"/>` +
-    line(`M64 24 L${69 + index * 5} ${20 - index * 3} M64 45 L${69 + index * 5} ${49 + index * 3}`);
-  return `<svg viewBox="0 0 88 70" aria-hidden="true" focusable="false">${art}</svg>`;
-}
 function makeChoice(option, checked, type, name) {
   const label = document.createElement("label");
-  label.className = "choice" + (option.graphic ? " choice-illustrated" : "");
+  label.className = "choice";
   const input = document.createElement("input");
   input.type = type; input.name = name; input.value = option.key; input.checked = checked;
   const face = document.createElement("span");
-  face.className = "choice-face";
-  if (option.graphic) {
-    const art = document.createElement("span");
-    art.className = "choice-graphic";
-    art.innerHTML = graphicSvg(option.graphic, option.key);
-    face.append(art);
-  }
-  const text = document.createElement("span");
-  text.className = "choice-copy";
-  const labelText = document.createElement("strong");
-  labelText.textContent = option.label;
-  text.append(labelText);
-  if (option.caption) {
-    const caption = document.createElement("small");
-    caption.textContent = option.caption;
-    text.append(caption);
-  }
-  face.append(text);
+  face.textContent = option.label;
   label.append(input, face);
   return label;
 }
 function showStep(number) {
-  ["start", "details", "result"].forEach((name, index) => { $(`#step-${name}`).hidden = index + 1 !== number; });
+  const names = ["home", "start", "details", "result"];
+  names.forEach((name, index) => { $(`#step-${name}`).hidden = index !== number; });
+  document.querySelector(".steps").hidden = number === 0;
   document.querySelectorAll("[data-step-indicator]").forEach((item) => {
     const current = Number(item.dataset.stepIndicator) === number;
     item.classList.toggle("is-current", current);
     if (current) item.setAttribute("aria-current", "step"); else item.removeAttribute("aria-current");
   });
   window.scrollTo(0, 0);
-  $(`#step-${["start", "details", "result"][number-1]} h1`).focus({preventScroll:true});
+  $(`#step-${names[number]} h1`).focus({preventScroll:true});
 }
 function renderAll() { renderDetails(); renderAvoids(); }
 function setPanel(key) {
@@ -356,13 +319,28 @@ function resultData() {
   const important = [];
   const usedAvoids = new Set();
   const style = styleText();
-  if (state.services.has("cut")) {
-    const cutIntro = style ? `커트는 ${style}${particle(style)} 정리하고 싶어요.` : "커트를 하고 싶어요.";
-    sentences.push(cutIntro);
-    if (state.details.style?.priority === "must" && style) important.push(cutIntro);
+  const services = ["cut", "perm", "downperm"].filter((id) => state.services.has(id));
+  const downArea = picked.downArea?.key;
+  const downPlace = {side:"옆머리", back:"뒷머리", both:"옆머리와 뒷머리"}[downArea];
+  const lift = {low:"조금", medium:"", high:"많이"}[picked.sideLift?.key];
+  const liftReason = picked.sideLift ? `옆머리가 ${lift ? lift + " " : ""}뜨는 편이라 ` : "";
+  const joinServices = (items) => items.length === 1 ? serviceNames[items[0]] :
+    items.length === 2 ? `${serviceNames[items[0]]}${items[0] === "cut" ? "와" : "과"} ${serviceNames[items[1]]}` :
+    "커트와 펌, 다운펌";
+  if (style && state.services.has("cut")) {
+    const others = services.filter((id) => id !== "cut");
+    const intro = others.length ? `${style}${particle(style)} 커트하고, ${joinServices(others)}도 함께 하고 싶어요.` :
+      `${style}${particle(style)} 커트하고 싶어요.`;
+    sentences.push(intro);
+    if (state.details.style?.priority === "must") important.push(intro);
+  } else if (services.length === 1 && downPlace) {
+    sentences.push(`${downPlace}에 다운펌을 하고 싶어요.`);
+  } else if (services.length === 1 && services[0] === "perm" && picked.permArea) {
+    const area = {all:"전체적으로", front:"앞머리 쪽에", side:"옆머리 쪽에", back:"뒷머리 쪽에"}[picked.permArea.key];
+    sentences.push(`${area} 펌을 하고 싶어요.`);
+  } else if (services.length) {
+    sentences.push(`${joinServices(services)}${services.length === 1 && services[0] === "cut" ? "를" : "을"}${services.length > 1 ? " 함께" : ""} 하고 싶어요.`);
   }
-  if (state.services.has("perm")) sentences.push(state.services.has("cut") ? "펌도 함께 하고 싶어요." : "펌을 하고 싶어요.");
-  if (state.services.has("downperm")) sentences.push(state.services.has("cut") || state.services.has("perm") ? "다운펌도 함께 하고 싶어요." : "다운펌을 하고 싶어요.");
   const add = (id, speech) => {
     if (!speech) return;
     const related = selectedAvoids.find((item) => item.topic === id && !usedAvoids.has(item.id));
@@ -372,7 +350,8 @@ function resultData() {
     if (state.details[id]?.priority === "must") important.push(speech);
   };
   if (picked.photoFeel) add("photoFeel", picked.photoFeel.speech);
-  for (const id of ["cutLength","frontShape","side","back","layers","thinning","twoBlock","faceLine","permArea"]) add(id, picked[id]?.speech);
+  for (const id of ["cutLength","frontShape","side","back","layers","thinning","twoBlock","faceLine"]) add(id, picked[id]?.speech);
+  if (!(services.length === 1 && services[0] === "perm")) add("permArea", picked.permArea?.speech);
   const curl = picked.curlSize && picked.curlStrength ? `${picked.curlSize.speech}이 ${picked.curlStrength.speech} 해주세요.` :
     picked.curlSize ? `${picked.curlSize.speech}로 해주세요.` : picked.curlStrength ? `컬이 ${picked.curlStrength.speech} 해주세요.` : "";
   add("curlSize", curl);
@@ -381,11 +360,34 @@ function resultData() {
     picked.volumePosition ? `${picked.volumePosition.speech} 볼륨을 살려주세요.` : picked.volumeLevel ? `볼륨은 ${picked.volumeLevel.speech}` : "";
   add("volumePosition", volume);
   if (state.details.volumeLevel?.priority === "must" && volume) important.push(volume);
-  for (const id of ["downArea","downStrength","sideLift"]) add(id, picked[id]?.speech);
-  for (const item of selectedAvoids) if (!usedAvoids.has(item.id)) sentences.push(item.speech);
+  if (picked.downArea && services.length !== 1) add("downArea", `다운펌은 ${downPlace}에 해주세요.`);
+  const flatSide = selectedAvoids.find((item) => item.id === "flatSide");
+  const strongDown = selectedAvoids.find((item) => item.id === "strongDown");
+  if (picked.downStrength) {
+    const natural = picked.downStrength.key === "natural";
+    let request = natural ? "자연스럽게 눌러주세요." : "차분하게 눌러주세요.";
+    if (flatSide && downArea !== "back") {
+      request = natural ? "너무 납작해지지 않게 자연스럽게 눌러주세요." : "차분하게 눌러주시되, 너무 납작해지지는 않게 해주세요.";
+      usedAvoids.add(flatSide.id);
+    }
+    if (picked.sideLift) request = `옆머리가 ${lift ? lift + " " : ""}뜨는 편인데, ` + request;
+    sentences.push(request);
+    if (state.details.downStrength?.priority === "must") important.push(request);
+    if (natural && strongDown) usedAvoids.add(strongDown.id);
+  } else if (picked.sideLift) add("sideLift", picked.sideLift.speech);
+  const wantsEase = selectedAvoids.some((item) => ["hardStyling", "femaleHardStyling"].includes(item.id));
+  const wantsDamageCare = selectedAvoids.some((item) => ["maleDamage", "femaleDamage", "downDamage"].includes(item.id));
+  if (wantsEase && wantsDamageCare) sentences.push("평소에 손질하기 편하고 모발 손상도 적었으면 좋겠어요.");
+  for (const item of selectedAvoids) {
+    if (wantsEase && wantsDamageCare && ["hardStyling", "femaleHardStyling", "maleDamage", "femaleDamage", "downDamage"].includes(item.id)) continue;
+    if (usedAvoids.has(item.id)) continue;
+    const phrasing = {hardStyling:"평소에 손질하기 편한 스타일이면 좋겠어요.", femaleHardStyling:"평소에 손질하기 편한 스타일이면 좋겠어요.",
+      maleDamage:"모발 손상도 최대한 줄여주시면 좋겠어요.", femaleDamage:"모발 손상도 최대한 줄여주시면 좋겠어요.", downDamage:"모발 손상도 최대한 줄여주시면 좋겠어요."}[item.id] || item.speech;
+    if (!sentences.includes(phrasing)) sentences.push(phrasing);
+  }
   const memo = state.memo.trim();
   if (memo) sentences.push(memo);
-  return {speech:sentences.join(" ").replace(/[ \t]+/g, " ").trim(), important:[...new Set(important)], avoids:selectedAvoids.map((item) => item.speech), memo};
+  return {speech:sentences.join(" ").replace(/[ \t]+/g, " ").trim(), important:[...new Set(important)], avoids:[...new Set(selectedAvoids.map((item) => item.speech))], memo};
 }
 function fillList(sectionId, listId, values) {
   const section = $(sectionId); section.hidden = values.length === 0;
@@ -577,6 +579,7 @@ function resetAll() {
 }
 function confirmReset(message, action) { if (window.confirm(message)) action(); }
 
+$("#home-start").addEventListener("click", () => showStep(1));
 document.querySelectorAll('#gender-choices input').forEach((input) => input.addEventListener("change", () => { state.gender = input.value; }));
 document.querySelectorAll('#service-choices input').forEach((input) => input.addEventListener("change", () => {
   if (input.checked) state.services.add(input.value); else state.services.delete(input.value);
