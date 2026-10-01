@@ -36,8 +36,8 @@ legend{padding:0}
 .choice-grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
 .choice{position:relative;display:block;min-width:0}
 .choice input{position:absolute;opacity:0;width:1px;height:1px}
-.choice span{display:flex;align-items:center;min-height:60px;padding:12px 16px;background:#203b2b;border:2px solid #648270;border-radius:13px;color:#f3f6ee;font-size:18px;line-height:1.4;overflow-wrap:anywhere}
-.choice span::before{content:"";width:20px;height:20px;flex:none;border:2px solid #abc4ac;border-radius:6px;margin-right:12px}
+.choice > span{display:flex;align-items:center;min-height:60px;padding:12px 16px;background:#203b2b;border:2px solid #648270;border-radius:13px;color:#f3f6ee;font-size:18px;line-height:1.4;overflow-wrap:anywhere}
+.choice > span::before{content:"";width:20px;height:20px;flex:none;border:2px solid #abc4ac;border-radius:6px;margin-right:12px}
 .choice input[type=radio]+span::before{border-radius:50%}
 .choice input:checked+span{background:#344e31;border-color:#edce82;color:#fff}
 .choice input:checked+span::before{content:"✓";display:grid;place-items:center;background:#f2d58d;border-color:#f2d58d;color:#101a13;font-size:16px;font-weight:900}
@@ -48,7 +48,7 @@ legend{padding:0}
 .button-secondary{color:#f7f4e9;background:#21382b;border-color:#8da991}
 .button-secondary:hover{background:#31513c}
 .button-plain{color:#f7e1a4;background:transparent;border-color:#8da991}
-.button:hover,.choice:hover span{filter:brightness(1.09)}
+.button:hover,.choice:hover > span{filter:brightness(1.09)}
 .button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid #f8e7ad;outline-offset:3px}
 .photo-actions,.screen-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .photo-actions{margin-bottom:18px}
@@ -76,7 +76,7 @@ input::placeholder,textarea::placeholder{color:#adbaae}
 .detail-body .choice-grid{margin-bottom:18px}
 .priority-box{border:1px solid #5b755d;border-radius:12px;padding:14px;background:#203629}
 .priority-box .detail-label{color:#f8e19a;margin:0 0 10px}
-.priority-box .choice span{min-height:52px;font-size:17px}
+.priority-box .choice > span{min-height:52px;font-size:17px}
 .result-card{border:2px solid #dfc483;border-radius:20px;background:#20372a;padding:28px 30px;margin-bottom:20px}
 .result-heading{color:#f4dc9d;font-size:17px;font-weight:700;margin-bottom:14px}
 .result-speech{font-size:clamp(22px,3vw,24px);line-height:1.75;margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
@@ -118,3 +118,62 @@ th:last-child,td:last-child{text-align:right}
 .privacy-main p,.privacy-main li{font-size:17px}
 @media(max-width:700px){.admin-metrics{grid-template-columns:1fr 1fr}.public-stats{padding:18px}.site-footer a,.footer-button{display:inline-block;margin:4px 8px}}
 @media(max-width:460px){.admin-metrics{grid-template-columns:1fr}.public-stats{grid-template-columns:1fr}}
+
+/* 화면 개편: 딥 그린 배경과 선택 중심의 접힌 카드 */
+:root{color:#f7f3e8;background:#101f1a}
+body{background:linear-gradient(180deg,#14291f 0,#101f1a 48%,#0e1b16 100%);font-size:18px;line-height:1.7}
+.site-header,.site-footer{border-color:#66816b}
+.site-header p,.screen-intro>p:last-child,.field-help,.site-footer{color:#dce7dc}
+h1{font-size:clamp(30px,4vw,38px)}
+h2,legend,.section-label{font-size:clamp(24px,3vw,27px)}
+.card{background:#203b2d;border-color:#66836a;padding:34px;margin-bottom:28px;box-shadow:0 12px 28px rgba(0,0,0,.15)}
+.flow-graphic>div{background:#274535;border-color:#789276}
+.choice-grid{gap:16px}
+.choice > span{min-height:68px;background:#2c4939;border-color:#829b83;color:#fbf8ef;font-size:19px;padding:16px 18px}
+.choice input:checked + span{background:#456247;border-color:#e6c77f;color:#fff8e7;box-shadow:inset 0 0 0 1px #e6c77f}
+.choice-copy{display:flex;flex-direction:column;gap:2px}
+.choice-copy strong{font-size:19px;font-weight:700}
+.choice-copy small{font-size:15px;color:#dce8d9;line-height:1.45}
+.choice-illustrated > .choice-face{min-height:170px;flex-direction:column;align-items:flex-start;justify-content:center;gap:10px}
+.choice-illustrated > .choice-face::before{display:none}
+.choice-graphic{width:100%;min-height:76px;display:flex;align-items:center;justify-content:center;color:#efd694}
+.choice-graphic svg{display:block;width:104px;height:76px}
+.choice-illustrated input:checked + .choice-face .choice-graphic{color:#ffe9aa}
+.selection-summary{display:inline-block;margin:0 0 24px;padding:10px 17px;background:#2b4837;border:1px solid #9db294;border-radius:999px;color:#f8e6aa;font-size:17px;font-weight:700}
+.service-card h2{padding-bottom:16px;margin-bottom:4px;border-bottom:1px solid #6a866d;color:#f5dda0}
+.detail-block{border-top:1px solid #6a866d;padding:24px 0}
+.detail-top{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px 14px;align-items:center}
+.detail-top h3{grid-column:1/-1;font-size:21px}
+.detail-summary{grid-column:1;min-width:0;color:#f7f3e8;font-size:18px;overflow-wrap:anywhere}
+.detail-toggle,.priority-toggle{min-height:48px;padding:8px 15px;border-radius:10px;font-size:17px;font-weight:700;white-space:nowrap}
+.detail-toggle{background:#365541;border:2px solid #a9bea5;color:#fff9ec}
+.detail-toggle[aria-expanded=true]{background:#496747;border-color:#e6c77f;color:#fff2c8}
+.priority-toggle{border:2px solid #94ab91;background:#284535;color:#f4e6ba;cursor:pointer}
+.priority-toggle[aria-pressed=true]{background:#665c35;border-color:#e6c77f;color:#fff4d3}
+.detail-body{padding:20px 0 4px}
+.detail-body .choice-grid{margin-bottom:18px}
+.inline-field .button{margin-top:14px}
+.button-reset{background:transparent;border-color:#afbcaa;color:#e2e8da}
+.button-reset:hover{background:#314738}
+.result-card{background:#284635;border-color:#e6c77f;padding:34px}
+.result-heading{font-size:20px;color:#f8de9f}
+.result-speech{font-size:clamp(23px,3vw,27px);line-height:1.8}
+.result-section{border-left:4px solid #d9bd76}
+.form-error{font-size:18px}
+@media(max-width:700px){
+  .card,.result-card{padding:25px 20px}
+  .choice > span{font-size:18px}
+  .choice-copy strong{font-size:18px}
+  .choice-illustrated > .choice-face{min-height:154px}
+  .screen-actions .button{flex:1 1 100%}
+  .detail-top{grid-template-columns:minmax(0,1fr) auto}
+  .detail-summary{grid-column:1/-1}
+  .detail-toggle{width:auto}
+  .priority-toggle{grid-column:2}
+}
+@media(max-width:460px){
+  .choice-grid.two{grid-template-columns:1fr}
+  .detail-top{grid-template-columns:1fr 1fr}
+  .detail-top h3,.detail-summary{grid-column:1/-1}
+  .detail-toggle,.priority-toggle{width:100%}
+}

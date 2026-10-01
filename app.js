@@ -1,68 +1,234 @@
 "use strict";
 
-// 모든 작성 내용은 이 페이지의 메모리에만 둡니다.
+// 사진과 작성 내용은 현재 페이지의 메모리에서만 처리합니다.
 const state = {
   gender: "", services: new Set(), photoUrl: "", photoName: "",
   style: "", customStyle: "", details: {}, avoids: new Set(), memo: ""
 };
-
 const $ = (selector) => document.querySelector(selector);
-let requestStarted = false;
-let requestCompleted = false;
-const trackEvent = (name) => window.SSAEIR_ANALYTICS?.track(name);
 const serviceNames = {cut: "커트", perm: "펌", downperm: "다운펌"};
-const styles = {
+const styleNames = {
   male: ["댄디컷", "크롭컷", "아이비리그컷", "리프컷"],
   female: ["숏컷", "보브컷", "태슬컷", "레이어드컷", "허쉬컷"]
 };
-const sharedStyles = ["아직 잘 모르겠어요", "직접 입력할게요"];
-const avoidItems = [
-  {id:"shortAll", label:"전체 길이가 너무 짧아지는 것은 싫어요", services:["cut"]},
-  {id:"shortFront", label:"앞머리가 너무 짧아지는 것은 싫어요", services:["cut"]},
-  {id:"shortSide", label:"옆머리·귀 주변이 너무 짧아지는 것은 싫어요", services:["cut"]},
-  {id:"thinTooMuch", label:"숱을 너무 많이 줄이지 않았으면 좋겠어요", services:["cut"]},
-  {id:"shortBack", label:"뒷머리를 높게 올려 짧게 자르지 않았으면 좋겠어요", services:["cut"]},
-  {id:"layersTooMuch", label:"층을 너무 많이 넣지 않았으면 좋겠어요", services:["cut"]},
-  {id:"curlTooStrong", label:"컬이 너무 강하지 않았으면 좋겠어요", services:["perm"]},
-  {id:"volumeTooBig", label:"볼륨이 너무 크지 않았으면 좋겠어요", services:["perm"]}
+let openPanel = "";
+let previousContext = "";
+
+// label은 화면용, speech는 미용실에서 읽을 문장용입니다.
+const choice = (key, label, speech, graphic = "", caption = "") => ({key, label, speech, graphic, caption});
+const avoidGroups = [
+  {id:"commonCut", title:"공통 · 커트", service:"cut", items:[
+    {id:"tooShort", label:"너무 짧게 자르지 않기", speech:"전체 길이를 너무 짧게 자르지는 말아주세요.", topic:"cutLength", short:"너무 짧게 자르지는 말아주세요."},
+    {id:"shorterThanWanted", label:"원하는 길이보다 짧아지지 않기", speech:"말씀드린 길이보다 짧아지지 않게 해주세요.", topic:"cutLength", short:"말씀드린 길이보다 짧아지지 않게 해주세요."}
+  ]},
+  {id:"commonEase", title:"공통 · 손질과 느낌", services:["cut","perm","downperm"], items:[
+    {id:"hardStyling", label:"손질이 너무 어렵지 않게 하기", speech:"평소에 손질하기 어렵지 않게 해주세요."},
+    {id:"unnatural", label:"자연스럽지 않은 느낌 피하기", speech:"전체적으로 인위적인 느낌은 피해주세요."}
+  ]},
+  {id:"commonPerm", title:"공통 · 펌", service:"perm", items:[
+    {id:"bigVolume", label:"과한 볼륨 피하기", speech:"볼륨이 과하게 커지지는 않게 해주세요."}
+  ]},
+  {id:"maleCut", title:"남성 · 커트", service:"cut", gender:"male", items:[
+    {id:"maleSideLift", label:"옆머리가 너무 뜨지 않게 하기", speech:"옆머리가 너무 뜨지 않게 정리해 주세요.", topic:"side", short:"너무 뜨지 않게 정리해 주세요."},
+    {id:"highFade", label:"높은 상고 피하기", speech:"뒷머리를 높은 상고로 올리지는 말아주세요.", topic:"back", short:"높은 상고로 올리지는 말아주세요."},
+    {id:"maleShortFront", label:"앞머리를 너무 짧게 자르지 않기", speech:"앞머리를 너무 짧게 자르지는 말아주세요.", topic:"frontShape", short:"너무 짧게 자르지는 말아주세요."},
+    {id:"maleShortBack", label:"뒷머리를 너무 짧게 자르지 않기", speech:"뒷머리를 너무 짧게 자르지는 말아주세요.", topic:"back", short:"너무 짧게 자르지는 말아주세요."},
+    {id:"hardTwoBlock", label:"투블럭 경계를 너무 선명하게 하지 않기", speech:"투블럭 경계가 너무 선명하지 않게 해주세요.", topic:"twoBlock", short:"경계가 너무 선명하지 않게 해주세요."},
+    {id:"maleThin", label:"숱을 너무 많이 치지 않기", speech:"숱을 너무 많이 치지는 말아주세요.", topic:"thinning", short:"너무 많이 치지는 말아주세요."}
+  ]},
+  {id:"femaleCut", title:"여성 · 커트", service:"cut", gender:"female", items:[
+    {id:"manyLayers", label:"층을 너무 많이 내지 않기", speech:"층을 너무 많이 내지는 말아주세요.", topic:"layers", short:"너무 많이 내지는 말아주세요."},
+    {id:"lightEnds", label:"끝부분이 너무 가벼워지지 않게 하기", speech:"머리 끝이 너무 가벼워지지 않게 해주세요."},
+    {id:"femaleShortFront", label:"앞머리를 너무 짧게 자르지 않기", speech:"앞머리를 너무 짧게 자르지는 말아주세요.", topic:"frontShape", short:"너무 짧게 자르지는 말아주세요."},
+    {id:"shortFace", label:"얼굴 옆 라인을 너무 짧게 자르지 않기", speech:"얼굴 옆 라인은 너무 짧게 자르지 말아주세요.", topic:"faceLine", short:"너무 짧게 자르지 말아주세요."},
+    {id:"endsFlip", label:"머리 끝이 뻗치지 않게 하기", speech:"머리 끝이 쉽게 뻗치지 않게 정리해 주세요."},
+    {id:"femaleThin", label:"숱을 과하게 줄이지 않기", speech:"숱을 과하게 줄이지는 말아주세요.", topic:"thinning", short:"과하게 줄이지는 말아주세요."}
+  ]},
+  {id:"malePerm", title:"남성 · 펌", service:"perm", gender:"male", items:[
+    {id:"maleStrongCurl", label:"컬이 너무 강하지 않게 하기", speech:"컬이 너무 강하지 않게 해주세요."},
+    {id:"maleTinyCurl", label:"컬이 너무 작지 않게 하기", speech:"컬이 너무 작아지지 않게 해주세요."},
+    {id:"maleBigPerm", label:"볼륨이 과하게 커지지 않게 하기", speech:"펌 볼륨이 과하게 커지지 않게 해주세요."},
+    {id:"maleDamage", label:"모발 손상이 심해지지 않게 하기", speech:"모발 손상이 심해지지 않도록 살펴주세요."}
+  ]},
+  {id:"femalePerm", title:"여성 · 펌", service:"perm", gender:"female", items:[
+    {id:"femaleStrongCurl", label:"컬이 너무 강하지 않게 하기", speech:"컬이 너무 강하지 않게 해주세요."},
+    {id:"femaleTinyCurl", label:"컬이 너무 작지 않게 하기", speech:"컬이 너무 작아지지 않게 해주세요."},
+    {id:"rootTooHigh", label:"뿌리 볼륨이 과하게 뜨지 않게 하기", speech:"뿌리 볼륨이 과하게 뜨지 않게 해주세요."},
+    {id:"puffyEnds", label:"머리 끝이 너무 부해지지 않게 하기", speech:"머리 끝이 너무 부해지지 않게 해주세요."},
+    {id:"femaleHardStyling", label:"손질이 어려운 스타일 피하기", speech:"평소에 손질하기 어려운 스타일은 피해주세요."},
+    {id:"femaleDamage", label:"모발 손상이 심해지지 않게 하기", speech:"모발 손상이 심해지지 않도록 살펴주세요."}
+  ]},
+  {id:"downperm", title:"다운펌", service:"downperm", items:[
+    {id:"strongDown", label:"다운펌을 너무 강하게 하지 않기", speech:"다운펌은 너무 강하게 하지 말아주세요."},
+    {id:"flatSide", label:"옆머리가 너무 눌어붙지 않게 하기", speech:"옆머리가 너무 눌어붙지 않게 해주세요."},
+    {id:"downDamage", label:"모발 손상이 심해지지 않게 하기", speech:"모발 손상이 심해지지 않도록 살펴주세요."}
+  ]}
 ];
 
 function detailDefinitions() {
-  const photo = Boolean(state.photoUrl);
   const defs = [];
-  const add = (id, title, choices, lead, service, direct = false) => {
-    if (state.services.has(service)) defs.push({id,title,choices,lead,direct});
-  };
-  if (photo) defs.push({id:"feel", title:"전체적인 느낌", choices:["사진처럼", "비슷한 느낌만"], lead:"전체적인 느낌은", direct:false});
+  const add = (service, id, title, options) => defs.push({service, id, title, options});
+  const firstService = ["cut","perm","downperm"].find((id) => state.services.has(id));
+  if (state.photoUrl && firstService) add(firstService, "photoFeel", "사진의 전체적인 느낌", [
+    choice("similar", "비슷한 느낌", "전체적인 느낌은 사진과 비슷하게 해주세요."),
+    choice("reference", "참고만 할게요", "사진은 참고만 하고 제 머리에 맞게 상담하고 싶어요.")
+  ]);
   if (state.services.has("cut")) {
-    if (photo) {
-      const length = ["사진처럼", "사진보다 조금 길게", "사진보다 조금 짧게", "상담 후 결정"];
-      ["앞머리", "옆머리", "뒷머리", "전체 길이"].forEach((title, index) => add(["front", "side", "back", "length"][index], title, length, `${title}는`, "cut"));
-      add("layers", "층", ["사진처럼", "사진보다 적게", "사진보다 많이", "상담 후 결정"], "층은", "cut");
-    } else {
-      add("length", "전체 길이", ["조금만 다듬기", "확실히 짧게", "기르는 중이라 최소한만", "상담 후 결정"], "전체 길이는", "cut");
-      add("front", "앞머리", ["현재 길이 유지", "눈썹 위까지", "눈썹 정도까지", "눈썹 아래로", "상담 후 결정"], "앞머리는", "cut");
-      add("side", "옆머리", ["귀가 드러나게", "귀를 일부 덮게", "귀를 덮는 길이로", "상담 후 결정"], "옆머리는", "cut");
-      add("back", "뒷머리", ["현재 길이 유지", "목덜미가 드러나게", "목덜미를 덮게", "상담 후 결정"], "뒷머리는", "cut");
-      add("layers", "층", ["거의 없이", "조금만", "충분히", "상담 후 결정"], "층은", "cut");
-    }
-    add("thinning", "숱 정리", ["조금만", "적당히", "많이", "상담 후 결정"], "숱은", "cut");
-    add("twoBlock", "투블럭", ["투블럭으로 하기", "투블럭 여부 상담 후 결정"], "투블럭은", "cut");
-    if (photo) add("styling", "손질", ["사진처럼 스타일링하는 방법 알고 싶음", "평소 손질하기 쉽게"], "손질은", "cut");
+    add("cut", "style", "헤어스타일", [...styleNames[state.gender].map((name) => choice(name, name, name)), choice("unknown", "잘 모르겠어요", ""), choice("custom", "직접 입력", "")]);
+    add("cut", "cutLength", "커트 길이", [
+      choice("short", "짧게", "전체 길이는 짧게 정리해 주세요.", "length", "짧은 길이"),
+      choice("medium", "중간", "전체 길이는 중간 정도로 남겨주세요.", "length", "중간 길이"),
+      choice("long", "길게", "전체 길이는 길게 남겨주세요.", "length", "긴 길이"),
+      ...(state.photoUrl ? [choice("photo", "사진처럼", "전체 길이는 사진과 비슷하게 해주세요.")] : [])
+    ]);
+    add("cut", "frontShape", "앞머리 형태", [
+      choice("down", "자연스럽게 내리기", "앞머리는 자연스럽게 내려주세요.", "fringe", "앞으로 내린 형태"),
+      choice("side", "옆으로 넘기기", "앞머리는 옆으로 자연스럽게 넘겨주세요.", "fringe", "옆으로 흐르는 형태"),
+      choice("light", "가볍게", "앞머리는 가볍게 정리해 주세요.", "fringe", "가벼운 앞머리"),
+      ...(state.photoUrl ? [choice("photo", "사진처럼", "앞머리는 사진과 비슷하게 해주세요.")] : [])
+    ]);
+    add("cut", "side", "옆머리", [
+      choice("showEar", "귀가 보이게", "옆머리는 귀가 보이게 정리해 주세요."),
+      choice("halfEar", "귀를 조금 덮게", "옆머리는 귀를 조금 덮게 남겨주세요."),
+      choice("coverEar", "귀를 덮게", "옆머리는 귀를 덮는 길이로 남겨주세요.")
+    ]);
+    add("cut", "back", "뒷머리", [
+      choice("short", "목덜미가 보이게", "뒷머리는 목덜미가 보이게 정리해 주세요."),
+      choice("keep", "길이를 남기기", "뒷머리는 길이를 어느 정도 남겨주세요.")
+    ]);
+    add("cut", "layers", "레이어 정도", [
+      choice("none", "층 거의 없이", "층은 거의 내지 말아주세요.", "layers", "층이 적은 형태"),
+      choice("light", "층 조금", "층은 조금만 내주세요.", "layers", "층이 약간 있는 형태"),
+      choice("many", "층 충분히", "층을 충분히 내주세요.", "layers", "층이 많은 형태")
+    ]);
+    add("cut", "thinning", "숱 정리", [
+      choice("little", "조금만", "숱은 조금만 정리해 주세요."),
+      choice("normal", "적당히", "숱은 적당히 정리해 주세요.")
+    ]);
+    if (state.gender === "male") add("cut", "twoBlock", "투블럭", [
+      choice("soft", "부드러운 경계", "투블럭은 경계가 부드럽게 이어지도록 해주세요."),
+      choice("none", "투블럭 없이", "투블럭은 하지 말아주세요.")
+    ]);
+    if (state.gender === "female") add("cut", "faceLine", "얼굴 옆 라인", [
+      choice("keep", "길이 남기기", "얼굴 옆 라인은 길이를 남겨주세요."),
+      choice("soft", "자연스럽게", "얼굴 옆 라인은 자연스럽게 이어주세요.")
+    ]);
   }
   if (state.services.has("perm")) {
-    add("curlSize", "컬 크기", photo ? ["사진처럼", "사진보다 크게", "사진보다 작게", "상담 후 결정"] : ["큰 컬", "중간 컬", "작은 컬", "상담 후 결정"], "컬 크기는", "perm");
-    add("curlStrength", "컬 강도", photo ? ["사진처럼", "사진보다 약하게", "사진보다 강하게", "상담 후 결정"] : ["은은하게", "적당히", "뚜렷하게", "상담 후 결정"], "컬 강도는", "perm");
-    add("volume", "볼륨", photo ? ["사진처럼", "사진보다 줄이기", "사진보다 살리기", "상담 후 결정"] : ["자연스럽게", "충분히 살리기", "줄이기", "상담 후 결정"], "볼륨은", "perm");
-    add("permArea", "펌을 적용할 부분", ["전체", "앞머리", "옆머리", "뒷머리", "직접 입력", "상담 후 결정"], "펌은", "perm", true);
+    add("perm", "permArea", "펌할 부분", [
+      choice("all", "전체", "펌은 전체적으로 해주세요."),
+      choice("front", "앞머리", "앞머리 쪽에 펌을 해주세요."),
+      choice("side", "옆머리", "옆머리 쪽에 펌을 해주세요."),
+      choice("back", "뒷머리", "뒷머리 쪽에 펌을 해주세요.")
+    ]);
+    add("perm", "curlSize", "컬 크기", [
+      choice("small", "작은 컬", "작은 컬", "curl", "촘촘한 컬"),
+      choice("medium", "중간 컬", "중간 컬", "curl", "중간 크기 컬"),
+      choice("large", "큰 컬", "큰 컬", "curl", "넓고 느슨한 컬")
+    ]);
+    add("perm", "curlStrength", "컬 강도", [
+      choice("natural", "자연스러움", "자연스럽게 보이도록", "strength", "부드러운 컬"),
+      choice("normal", "보통", "적당히 보이도록", "strength", "중간 강도 컬"),
+      choice("clear", "뚜렷함", "분명하게 보이도록", "strength", "뚜렷한 컬")
+    ]);
+    add("perm", "volumePosition", "볼륨 위치", [
+      choice("root", "뿌리", "뿌리 쪽", "volume", "정수리·뿌리"),
+      choice("side", "옆머리", "옆머리 쪽", "volume", "옆머리"),
+      choice("end", "끝부분", "머리 끝 쪽", "volume", "끝부분")
+    ]);
+    add("perm", "volumeLevel", "볼륨 정도", [
+      choice("natural", "자연스럽게 살리기", "자연스럽게 살려주세요."),
+      choice("more", "충분히 살리기", "충분히 살려주세요."),
+      choice("less", "볼륨 줄이기", "조금 줄여주세요.")
+    ]);
   }
   if (state.services.has("downperm")) {
-    add("downArea", "다운펌 부위", ["옆머리", "뒷머리", "둘 다", "직접 입력", "상담 후 결정"], "다운펌은", "downperm", true);
-    add("downStrength", "다운펌 정도", ["자연스럽게 누르기", "최대한 차분하게 누르기", "상담 후 결정"], "다운펌 정도는", "downperm");
+    add("downperm", "downArea", "다운펌할 부분", [
+      choice("side", "옆머리", "옆머리에 다운펌을 해주세요."),
+      choice("back", "뒷머리", "뒷머리에 다운펌을 해주세요."),
+      choice("both", "옆머리와 뒷머리", "옆머리와 뒷머리에 다운펌을 해주세요.")
+    ]);
+    add("downperm", "downStrength", "눌림 정도", [
+      choice("natural", "자연스럽게", "다운펌은 자연스럽게 눌러주세요."),
+      choice("firm", "차분하게", "다운펌은 차분하게 눌러주세요.")
+    ]);
+    add("downperm", "sideLift", "옆머리 뜨는 정도", [
+      choice("low", "조금 뜸", "옆머리가 조금 떠서 자연스럽게 정리하고 싶어요.", "lift", "뜨는 정도가 약함"),
+      choice("medium", "보통", "옆머리가 떠서 차분히 정리하고 싶어요.", "lift", "뜨는 정도가 보통"),
+      choice("high", "많이 뜸", "옆머리가 많이 떠서 차분히 눌러주세요.", "lift", "뜨는 정도가 큼")
+    ]);
   }
   return defs;
 }
 
+function availableAvoidGroups() {
+  return avoidGroups.filter((group) => (!group.gender || group.gender === state.gender) &&
+    (!group.service || state.services.has(group.service)) &&
+    (!group.services || group.services.some((service) => state.services.has(service))));
+}
+function availableAvoids() { return availableAvoidGroups().flatMap((group) => group.items); }
+function selectedOption(def) {
+  const value = def.id === "style" ? state.style : state.details[def.id]?.value;
+  return def.options.find((option) => option.key === value);
+}
+function styleText() {
+  if (state.style === "custom") return state.customStyle.trim();
+  return styleNames[state.gender]?.includes(state.style) ? state.style : "";
+}
+function particle(word) {
+  const code = word.charCodeAt(word.length - 1);
+  const jong = code >= 0xac00 && code <= 0xd7a3 ? (code - 0xac00) % 28 : 0;
+  return jong && jong !== 8 ? "으로" : "로";
+}
+function graphicSvg(kind, key) {
+  const index = {short:0, medium:1, long:2, small:0, large:2, natural:0, normal:1, clear:2,
+    down:0, side:1, light:2, none:0, many:2, root:0, end:2, low:0, high:2}[key] ?? 1;
+  const line = (d, width = 4) => `<path d="${d}" fill="none" stroke="currentColor" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  let art = "";
+  if (kind === "length") art = `<circle cx="44" cy="20" r="10" fill="none" stroke="currentColor" stroke-width="3"/>` + line(`M30 23 V${38 + index * 12} M58 23 V${38 + index * 12}`) + line(`M30 ${38 + index * 12} Q44 ${47 + index * 12} 58 ${38 + index * 12}`, 3);
+  if (kind === "curl" || kind === "strength") {
+    const amp = kind === "strength" ? 7 + index * 5 : 12;
+    const waves = kind === "curl" ? 5 - index : 4;
+    let d = "M8 38";
+    for (let n = 0; n < waves; n++) d += ` Q${8 + (n + .5) * 72 / waves} ${38 - amp} ${8 + (n + 1) * 72 / waves} 38`;
+    art = line(d, 4) + line("M8 54 H80", 2);
+  }
+  if (kind === "fringe") art = `<circle cx="44" cy="34" r="22" fill="none" stroke="currentColor" stroke-width="3"/>` +
+    line(index === 1 ? "M24 25 Q46 17 63 34" : index === 2 ? "M22 27 Q33 17 43 28 Q54 18 65 27" : "M23 25 Q44 35 65 25");
+  if (kind === "layers") art = [0,1,2].map((n) => line(`M${20 + n * 7} ${22 + n * 14} H${68 - n * 7}`, n <= index ? 5 : 2)).join("");
+  if (kind === "volume") art = `<circle cx="44" cy="37" r="19" fill="none" stroke="currentColor" stroke-width="3"/>` +
+    line(index === 0 ? "M30 15 Q44 1 58 15" : index === 1 ? "M20 25 Q5 37 20 49 M68 25 Q83 37 68 49" : "M28 58 Q44 70 60 58");
+  if (kind === "lift") art = `<circle cx="44" cy="34" r="19" fill="none" stroke="currentColor" stroke-width="3"/>` +
+    line(`M64 24 L${69 + index * 5} ${20 - index * 3} M64 45 L${69 + index * 5} ${49 + index * 3}`);
+  return `<svg viewBox="0 0 88 70" aria-hidden="true" focusable="false">${art}</svg>`;
+}
+function makeChoice(option, checked, type, name) {
+  const label = document.createElement("label");
+  label.className = "choice" + (option.graphic ? " choice-illustrated" : "");
+  const input = document.createElement("input");
+  input.type = type; input.name = name; input.value = option.key; input.checked = checked;
+  const face = document.createElement("span");
+  face.className = "choice-face";
+  if (option.graphic) {
+    const art = document.createElement("span");
+    art.className = "choice-graphic";
+    art.innerHTML = graphicSvg(option.graphic, option.key);
+    face.append(art);
+  }
+  const text = document.createElement("span");
+  text.className = "choice-copy";
+  const labelText = document.createElement("strong");
+  labelText.textContent = option.label;
+  text.append(labelText);
+  if (option.caption) {
+    const caption = document.createElement("small");
+    caption.textContent = option.caption;
+    text.append(caption);
+  }
+  face.append(text);
+  label.append(input, face);
+  return label;
+}
 function showStep(number) {
   ["start", "details", "result"].forEach((name, index) => { $(`#step-${name}`).hidden = index + 1 !== number; });
   document.querySelectorAll("[data-step-indicator]").forEach((item) => {
@@ -73,187 +239,159 @@ function showStep(number) {
   window.scrollTo(0, 0);
   $(`#step-${["start", "details", "result"][number-1]} h1`).focus({preventScroll:true});
 }
-
-function makeChoice(value, checked, type, name, labelText = value) {
-  const label = document.createElement("label");
-  label.className = "choice";
-  const input = document.createElement("input");
-  input.type = type;
-  input.name = name;
-  input.value = value;
-  input.checked = checked;
-  const span = document.createElement("span");
-  span.textContent = labelText;
-  label.append(input, span);
-  return label;
+function renderAll() { renderDetails(); renderAvoids(); }
+function setPanel(key) {
+  openPanel = openPanel === key ? "" : key;
+  renderAll();
+  document.querySelector(`[data-panel="${key}"]`)?.focus();
 }
-
-function renderStyle() {
-  const card = $("#style-card");
-  card.hidden = !state.services.has("cut");
-  if (card.hidden) return;
-  const container = $("#style-choices");
-  container.replaceChildren();
-  [...styles[state.gender], ...sharedStyles].forEach((name) => {
-    const choice = makeChoice(name, state.style === name, "radio", "style");
-    choice.querySelector("input").addEventListener("change", () => {
-      state.style = name;
-      $("#custom-style-wrap").hidden = name !== "직접 입력할게요";
-    });
-    container.append(choice);
-  });
-  $("#custom-style-wrap").hidden = state.style !== "직접 입력할게요";
-  $("#custom-style").value = state.customStyle;
-}
-
 function renderDetails() {
   const container = $("#detail-groups");
   container.replaceChildren();
-  detailDefinitions().forEach((def) => {
-    const stored = state.details[def.id] || {open:false, value:"", priority:"soft", direct:""};
-    if (stored.value && !def.choices.includes(stored.value)) {
-      stored.value = "";
-      stored.direct = "";
-      state.details[def.id] = stored;
+  $("#selection-summary").textContent = `${state.gender === "male" ? "남성" : "여성"} · ${["cut","perm","downperm"].filter((id) => state.services.has(id)).map((id) => serviceNames[id]).join(" + ")}`;
+  for (const service of ["cut", "perm", "downperm"]) {
+    if (!state.services.has(service)) continue;
+    const card = document.createElement("section"); card.className = "card service-card";
+    const title = document.createElement("h2"); title.textContent = `${serviceNames[service]} 요청`; card.append(title);
+    for (const def of detailDefinitions().filter((item) => item.service === service)) {
+      const panel = document.createElement("div"); panel.className = "detail-block";
+      const top = document.createElement("div"); top.className = "detail-top";
+      const heading = document.createElement("h3"); heading.textContent = def.title;
+      const option = selectedOption(def);
+      const value = document.createElement("span"); value.className = "detail-summary";
+      value.textContent = option ? (def.id === "style" && option.key === "custom" ? styleText() || "직접 입력 중" : option.label) : "선택하지 않음";
+      const toggle = document.createElement("button");
+      toggle.type = "button"; toggle.className = "detail-toggle";
+      toggle.textContent = openPanel === `detail-${def.id}` ? "접기" : option ? "변경" : "선택하기";
+      toggle.dataset.panel = `detail-${def.id}`;
+      toggle.setAttribute("aria-expanded", String(openPanel === `detail-${def.id}`));
+      toggle.setAttribute("aria-controls", `detail-${def.id}`);
+      toggle.addEventListener("click", () => setPanel(`detail-${def.id}`));
+      top.append(heading, value, toggle);
+      if (option && option.key !== "unknown") {
+        const priority = document.createElement("button"); priority.type = "button";
+        priority.className = "priority-toggle";
+        priority.textContent = state.details[def.id]?.priority === "must" ? "꼭 전달 ✓" : "꼭 전달";
+        priority.setAttribute("aria-pressed", String(state.details[def.id]?.priority === "must"));
+        priority.addEventListener("click", () => {
+          const stored = state.details[def.id] || {};
+          stored.priority = stored.priority === "must" ? "soft" : "must";
+          state.details[def.id] = stored;
+          priority.textContent = stored.priority === "must" ? "꼭 전달 ✓" : "꼭 전달";
+          priority.setAttribute("aria-pressed", String(stored.priority === "must"));
+        });
+        top.append(priority);
+      }
+      panel.append(top);
+      const body = document.createElement("div"); body.id = `detail-${def.id}`;
+      body.className = "detail-body"; body.hidden = openPanel !== `detail-${def.id}`;
+      const choices = document.createElement("div"); choices.className = "choice-grid two";
+      for (const entry of def.options) {
+        const current = def.id === "style" ? state.style : state.details[def.id]?.value;
+        const item = makeChoice(entry, current === entry.key, "radio", `detail-${def.id}`);
+        item.querySelector("input").addEventListener("change", () => {
+          if (def.id === "style") state.style = entry.key;
+          state.details[def.id] = {...state.details[def.id], value:entry.key, priority:state.details[def.id]?.priority || "soft"};
+          openPanel = entry.key === "custom" ? `detail-${def.id}` : "";
+          renderAll();
+          if (entry.key === "custom") $("#custom-style")?.focus();
+          else document.querySelector(`[data-panel="detail-${def.id}"]`)?.focus();
+        });
+        choices.append(item);
+      }
+      body.append(choices);
+      if (def.id === "style" && state.style === "custom") {
+        const wrap = document.createElement("div"); wrap.className = "inline-field";
+        const label = document.createElement("label"); label.htmlFor = "custom-style"; label.textContent = "원하는 헤어스타일을 적어주세요";
+        const input = document.createElement("input"); input.type = "text"; input.id = "custom-style";
+        input.maxLength = 80; input.value = state.customStyle;
+        input.addEventListener("input", () => { state.customStyle = input.value; value.textContent = input.value.trim() || "직접 입력 중"; });
+        const done = document.createElement("button"); done.type = "button"; done.className = "button button-secondary"; done.textContent = "선택 완료";
+        done.addEventListener("click", () => { if (!input.value.trim()) { input.focus(); return; } openPanel = ""; renderAll(); document.querySelector('[data-panel="detail-style"]')?.focus(); });
+        wrap.append(label, input, done); body.append(wrap);
+      }
+      panel.append(body); card.append(panel);
     }
-    const block = document.createElement("section");
-    block.className = "detail-block";
-    const top = document.createElement("div");
-    top.className = "detail-top";
-    const heading = document.createElement("h3");
-    heading.textContent = def.title;
-    const toggle = document.createElement("button");
-    toggle.type = "button";
-    toggle.className = "detail-toggle";
-    toggle.textContent = stored.open ? "접기" : "선택하기";
-    toggle.setAttribute("aria-expanded", String(stored.open));
-    toggle.setAttribute("aria-controls", `detail-${def.id}`);
-    top.append(heading, toggle);
-    const body = document.createElement("div");
-    body.className = "detail-body";
-    body.id = `detail-${def.id}`;
-    body.hidden = !stored.open;
-    const choices = document.createElement("div");
-    choices.className = "choice-grid two";
-    def.choices.forEach((value) => {
-      const choice = makeChoice(value, stored.value === value, "radio", `detail-value-${def.id}`);
-      choice.querySelector("input").addEventListener("change", () => {
-        state.details[def.id] = {priority:"soft", direct:"", ...state.details[def.id], open:true, value};
-        if (directWrap) directWrap.hidden = value !== "직접 입력";
-      });
-      choices.append(choice);
-    });
-    body.append(choices);
-    let directWrap = null;
-    if (def.direct) {
-      directWrap = document.createElement("div");
-      directWrap.className = "inline-field";
-      directWrap.hidden = stored.value !== "직접 입력";
-      const label = document.createElement("label");
-      label.htmlFor = `direct-${def.id}`;
-      label.textContent = "원하는 부분을 적어주세요";
-      const input = document.createElement("input");
-      input.type = "text";
-      input.id = `direct-${def.id}`;
-      input.maxLength = 80;
-      input.value = stored.direct;
-      input.addEventListener("input", () => { state.details[def.id] = {...state.details[def.id], direct:input.value}; });
-      directWrap.append(label, input);
-      body.append(directWrap);
-    }
-    const priority = document.createElement("div");
-    priority.className = "priority-box";
-    const priorityLabel = document.createElement("span");
-    priorityLabel.className = "detail-label";
-    priorityLabel.textContent = "이 요청은 얼마나 중요하세요?";
-    const priorityChoices = document.createElement("div");
-    priorityChoices.className = "choice-grid two";
-    [["soft", "되도록 반영해주세요"], ["must", "꼭 지켜주세요"]].forEach(([value, label]) => {
-      const choice = makeChoice(value, stored.priority === value, "radio", `priority-${def.id}`, label);
-      choice.querySelector("input").addEventListener("change", () => { state.details[def.id] = {...state.details[def.id], priority:value}; });
-      priorityChoices.append(choice);
-    });
-    priority.append(priorityLabel, priorityChoices);
-    body.append(priority);
-    toggle.addEventListener("click", () => {
-      const open = body.hidden;
-      body.hidden = !open;
-      toggle.textContent = open ? "접기" : "선택하기";
-      toggle.setAttribute("aria-expanded", String(open));
-      state.details[def.id] = {value:"", priority:"soft", direct:"", ...state.details[def.id], open};
-    });
-    block.append(top, body);
-    container.append(block);
-  });
-}
-
-function renderAvoids() {
-  const container = $("#avoid-choices");
-  container.replaceChildren();
-  avoidItems.filter((item) => item.services.some((service) => state.services.has(service))).forEach((item) => {
-    const choice = makeChoice(item.id, state.avoids.has(item.id), "checkbox", `avoid-${item.id}`, item.label);
-    choice.querySelector("input").addEventListener("change", (event) => {
-      if (event.target.checked) state.avoids.add(item.id); else state.avoids.delete(item.id);
-    });
-    container.append(choice);
-  });
-  container.parentElement.hidden = container.childElementCount === 0;
-}
-
-function detailPhrase(def, item) {
-  const value = item.value;
-  if (!value || (value === "직접 입력" && !item.direct.trim())) return "";
-  if (def.id === "feel") return value === "사진처럼" ? "전체적인 느낌은 사진처럼 해주세요." : "전체적인 느낌만 사진과 비슷하게 해주세요.";
-  if (def.id === "twoBlock") return value === "투블럭으로 하기" ? "투블럭으로 해주세요." : "투블럭으로 할지는 상담 후 정하고 싶어요.";
-  if (def.id === "styling") return value === "평소 손질하기 쉽게" ? "평소 손질하기 쉽게 해주세요." : "사진처럼 스타일링하는 방법을 알려주세요.";
-  if (def.id === "permArea") return value === "상담 후 결정" ? "펌을 적용할 부분은 상담 후 정하고 싶어요." : `펌은 ${value === "직접 입력" ? item.direct.trim() : value}에 해주세요.`;
-  if (def.id === "downArea") return value === "상담 후 결정" ? "다운펌 부위는 상담 후 정하고 싶어요." : `다운펌은 ${value === "직접 입력" ? item.direct.trim() : value === "둘 다" ? "옆머리와 뒷머리" : value}에 해주세요.`;
-  if (def.id === "downStrength") return value === "상담 후 결정" ? "다운펌 정도는 상담 후 정하고 싶어요." : `다운펌은 ${value.replace("누르기", "눌러")} 주세요.`;
-  if (value === "상담 후 결정") return `${def.lead} 상담 후 정하고 싶어요.`;
-  if (def.id === "thinning") return `숱은 ${value} 정리해 주세요.`;
-  if (def.id === "curlSize") return `컬 크기는 ${["큰 컬", "중간 컬", "작은 컬"].includes(value) ? value + "로" : value} 해주세요.`;
-  if (def.id === "curlStrength") return `컬 강도는 ${value} 해주세요.`;
-  if (def.id === "volume") {
-    const words = {"충분히 살리기":"충분히 살려주세요", "줄이기":"줄여주세요", "사진보다 줄이기":"사진보다 줄여주세요", "사진보다 살리기":"사진보다 살려주세요"};
-    return `볼륨은 ${words[value] || value + " 해주세요"}.`;
+    container.append(card);
   }
-  if (def.id === "layers") return value === "거의 없이" ? "층은 거의 넣지 말아주세요." : `층은 ${value} 넣어주세요.`;
-  if (def.id === "length") return value === "조금만 다듬기" || value === "기르는 중이라 최소한만" ? `전체 길이는 ${value === "조금만 다듬기" ? "조금만 다듬어 주세요" : "기르는 중이라 최소한만 다듬어 주세요"}.` : `전체 길이는 ${value} 해주세요.`;
-  if (["front", "side", "back"].includes(def.id)) return value === "현재 길이 유지" ? `${def.lead} 현재 길이를 유지해 주세요.` : `${def.lead} ${value} 해주세요.`;
-  return `${def.lead} ${value} 해주세요.`;
 }
-
+function renderAvoids() {
+  const container = $("#avoid-groups"); container.replaceChildren();
+  for (const group of availableAvoidGroups()) {
+    const panel = document.createElement("div"); panel.className = "detail-block";
+    const top = document.createElement("div"); top.className = "detail-top";
+    const heading = document.createElement("h3"); heading.textContent = group.title;
+    const summary = document.createElement("span"); summary.className = "detail-summary";
+    const chosen = group.items.filter((item) => state.avoids.has(item.id));
+    summary.textContent = chosen.length ? chosen.map((item) => item.label).join(" · ") : "선택하지 않음";
+    const toggle = document.createElement("button"); toggle.type = "button"; toggle.className = "detail-toggle";
+    toggle.textContent = openPanel === `avoid-${group.id}` ? "접기" : chosen.length ? "변경" : "선택하기";
+    toggle.dataset.panel = `avoid-${group.id}`;
+    toggle.setAttribute("aria-expanded", String(openPanel === `avoid-${group.id}`));
+    toggle.setAttribute("aria-controls", `avoid-${group.id}`);
+    toggle.addEventListener("click", () => setPanel(`avoid-${group.id}`));
+    top.append(heading, summary, toggle); panel.append(top);
+    const body = document.createElement("div"); body.id = `avoid-${group.id}`;
+    body.className = "detail-body"; body.hidden = openPanel !== `avoid-${group.id}`;
+    const choices = document.createElement("div"); choices.className = "choice-grid one";
+    for (const item of group.items) {
+      const entry = makeChoice({key:item.id, label:item.label}, state.avoids.has(item.id), "checkbox", `avoid-${group.id}`);
+      entry.querySelector("input").addEventListener("change", (event) => {
+        if (event.target.checked) state.avoids.add(item.id); else state.avoids.delete(item.id);
+        summary.textContent = group.items.filter((candidate) => state.avoids.has(candidate.id)).map((candidate) => candidate.label).join(" · ") || "선택하지 않음";
+      });
+      choices.append(entry);
+    }
+    body.append(choices);
+    const done = document.createElement("button"); done.type = "button"; done.className = "button button-secondary"; done.textContent = "선택 완료";
+    done.addEventListener("click", () => { openPanel = ""; renderAll(); document.querySelector(`[data-panel="avoid-${group.id}"]`)?.focus(); });
+    body.append(done); panel.append(body); container.append(panel);
+  }
+}
 function resultData() {
-  const chosenServices = ["cut", "perm", "downperm"].filter((id) => state.services.has(id)).map((id) => serviceNames[id]);
-  const serviceLine = chosenServices.length === 1
-    ? `${chosenServices[0]}${chosenServices[0] === "커트" ? "를" : "을"} 생각하고 있어요.`
-    : `${chosenServices.join(", ")}을 함께 생각하고 있어요.`;
-  const chosenStyle = state.style === "직접 입력할게요" ? state.customStyle.trim() : state.style === "아직 잘 모르겠어요" ? "" : state.style;
-  const last = chosenStyle.slice(-1);
-  const syllable = last.charCodeAt(0);
-  const finalConsonant = syllable >= 0xac00 && syllable <= 0xd7a3 ? (syllable - 0xac00) % 28 : 0;
-  const styleParticle = finalConsonant && finalConsonant !== 8 ? "으로" : "로";
-  const styleLine = state.services.has("cut") && chosenStyle ? `헤어스타일은 ${chosenStyle}${styleParticle} 하고 싶어요.` : "";
-  const requests = detailDefinitions().map((def) => {
-    const item = state.details[def.id];
-    if (!item) return null;
-    const phrase = detailPhrase(def, item);
-    return phrase ? {phrase, priority:item.priority || "soft"} : null;
-  }).filter(Boolean);
-  const avoids = avoidItems.filter((item) => state.avoids.has(item.id) && item.services.some((service) => state.services.has(service))).map((item) => item.label);
-  const intro = [serviceLine, styleLine, ...requests.map((item) => item.priority === "must" ? `특히 ${item.phrase}` : item.phrase)].filter(Boolean).join(" ");
-  const speech = [intro, avoids.map((item) => `${item}.`).join(" "), state.memo.trim()].filter(Boolean).join("\n\n");
-  return {speech, important:requests.filter((item) => item.priority === "must").map((item) => item.phrase), avoids, memo:state.memo.trim()};
+  const defs = detailDefinitions();
+  const picked = Object.fromEntries(defs.map((def) => [def.id, selectedOption(def)]));
+  const selectedAvoids = availableAvoids().filter((item) => state.avoids.has(item.id));
+  const sentences = [];
+  const important = [];
+  const usedAvoids = new Set();
+  const style = styleText();
+  if (state.services.has("cut")) {
+    const cutIntro = style ? `커트는 ${style}${particle(style)} 정리하고 싶어요.` : "커트를 하고 싶어요.";
+    sentences.push(cutIntro);
+    if (state.details.style?.priority === "must" && style) important.push(cutIntro);
+  }
+  if (state.services.has("perm")) sentences.push(state.services.has("cut") ? "펌도 함께 하고 싶어요." : "펌을 하고 싶어요.");
+  if (state.services.has("downperm")) sentences.push(state.services.has("cut") || state.services.has("perm") ? "다운펌도 함께 하고 싶어요." : "다운펌을 하고 싶어요.");
+  const add = (id, speech) => {
+    if (!speech) return;
+    const related = selectedAvoids.find((item) => item.topic === id && !usedAvoids.has(item.id));
+    const combined = related && speech.endsWith("주세요.") && !speech.endsWith("말아주세요.") ? speech.slice(0, -4) + "주시고, " + related.short : speech;
+    if (related && combined !== speech) usedAvoids.add(related.id);
+    sentences.push(combined);
+    if (state.details[id]?.priority === "must") important.push(speech);
+  };
+  if (picked.photoFeel) add("photoFeel", picked.photoFeel.speech);
+  for (const id of ["cutLength","frontShape","side","back","layers","thinning","twoBlock","faceLine","permArea"]) add(id, picked[id]?.speech);
+  const curl = picked.curlSize && picked.curlStrength ? `${picked.curlSize.speech}이 ${picked.curlStrength.speech} 해주세요.` :
+    picked.curlSize ? `${picked.curlSize.speech}로 해주세요.` : picked.curlStrength ? `컬이 ${picked.curlStrength.speech} 해주세요.` : "";
+  add("curlSize", curl);
+  if (state.details.curlStrength?.priority === "must" && curl) important.push(curl);
+  const volume = picked.volumePosition && picked.volumeLevel ? `${picked.volumePosition.speech} 볼륨은 ${picked.volumeLevel.speech}` :
+    picked.volumePosition ? `${picked.volumePosition.speech} 볼륨을 살려주세요.` : picked.volumeLevel ? `볼륨은 ${picked.volumeLevel.speech}` : "";
+  add("volumePosition", volume);
+  if (state.details.volumeLevel?.priority === "must" && volume) important.push(volume);
+  for (const id of ["downArea","downStrength","sideLift"]) add(id, picked[id]?.speech);
+  for (const item of selectedAvoids) if (!usedAvoids.has(item.id)) sentences.push(item.speech);
+  const memo = state.memo.trim();
+  if (memo) sentences.push(memo);
+  return {speech:sentences.join(" ").replace(/[ \t]+/g, " ").trim(), important:[...new Set(important)], avoids:selectedAvoids.map((item) => item.speech), memo};
 }
-
 function fillList(sectionId, listId, values) {
-  const section = $(sectionId);
-  section.hidden = values.length === 0;
-  const list = $(listId);
-  list.replaceChildren();
-  values.forEach((value) => { const li = document.createElement("li"); li.textContent = value; list.append(li); });
+  const section = $(sectionId); section.hidden = values.length === 0;
+  const list = $(listId); list.replaceChildren();
+  for (const value of values) { const li = document.createElement("li"); li.textContent = value; list.append(li); }
 }
-
 function renderResult() {
   const data = resultData();
   $("#result-speech").textContent = data.speech;
@@ -265,7 +403,6 @@ function renderResult() {
   if (state.photoUrl) $("#result-photo").src = state.photoUrl; else $("#result-photo").removeAttribute("src");
   $("#action-status").textContent = "";
 }
-
 function clearPhoto() {
   if (state.photoUrl) URL.revokeObjectURL(state.photoUrl);
   state.photoUrl = "";
@@ -324,7 +461,6 @@ async function copySpeech() {
       if (!success) throw new Error("copy failed");
     }
     $("#action-status").textContent = "문장을 복사했어요.";
-    trackEvent("copy_success");
   } catch {
     $("#action-status").textContent = "복사하지 못했어요. 요청문을 길게 눌러 직접 복사해 주세요.";
   }
@@ -412,22 +548,42 @@ function saveImage() {
     link.click();
     link.remove();
     $("#action-status").textContent = "사진을 제외한 결과 이미지 다운로드를 시작했어요. 실제 저장 여부는 브라우저에서 확인해 주세요.";
-    trackEvent("image_download_triggered");
   } catch {
     $("#action-status").textContent = "이미지를 저장하지 못했어요. 다른 브라우저에서 다시 시도해 주세요.";
   }
 }
 
-document.querySelectorAll('#gender-choices input').forEach((input) => input.addEventListener("change", () => {
-  state.gender = input.value;
+function resetStyleState() {
   state.style = "";
   state.customStyle = "";
-}));
+  state.details = {};
+  state.avoids.clear();
+  state.memo = "";
+  $("#memo").value = "";
+  openPanel = "";
+  $("#result-speech").textContent = "";
+  $("#action-status").textContent = "";
+  for (const id of ["result-important-section","result-avoid-section","result-memo-section","result-photo-section"]) $("#" + id).hidden = true;
+}
+function resetAll() {
+  clearPhoto();
+  state.gender = "";
+  state.services.clear();
+  resetStyleState();
+  previousContext = "";
+  document.querySelectorAll('#gender-choices input, #service-choices input').forEach((input) => { input.checked = false; });
+  $("#start-error").hidden = true;
+  showStep(1);
+}
+function confirmReset(message, action) { if (window.confirm(message)) action(); }
+
+document.querySelectorAll('#gender-choices input').forEach((input) => input.addEventListener("change", () => { state.gender = input.value; }));
 document.querySelectorAll('#service-choices input').forEach((input) => input.addEventListener("change", () => {
   if (input.checked) state.services.add(input.value); else state.services.delete(input.value);
 }));
 $("#photo-input").addEventListener("change", handlePhoto);
 $("#photo-clear").addEventListener("click", () => { clearPhoto(); $("#start-error").hidden = true; });
+$("#start-reset").addEventListener("click", () => confirmReset("사진과 모든 선택 내용을 지우고 처음부터 다시 하시겠어요?", resetAll));
 $("#start-next").addEventListener("click", () => {
   if (!state.gender || !state.services.size) {
     $("#start-error").textContent = "성별과 시술을 골라주세요.";
@@ -435,25 +591,25 @@ $("#start-next").addEventListener("click", () => {
     return;
   }
   $("#start-error").hidden = true;
-  if (!requestStarted) {
-    requestStarted = true;
-    trackEvent("request_start");
-  }
-  renderStyle(); renderDetails(); renderAvoids(); showStep(2);
+  const context = `${state.gender}:${[...state.services].sort().join(",")}`;
+  if (previousContext && previousContext !== context) resetStyleState();
+  previousContext = context;
+  renderAll();
+  showStep(2);
 });
-$("#custom-style").addEventListener("input", (event) => { state.customStyle = event.target.value; });
 $("#memo").addEventListener("input", (event) => { state.memo = event.target.value; });
+$("#details-reset").addEventListener("click", () => confirmReset("스타일 선택, 피하고 싶은 부분, 메모와 중요도를 지우시겠어요? 성별·시술·사진은 유지됩니다.", () => {
+  resetStyleState(); renderAll(); showStep(2);
+}));
 $("#details-back").addEventListener("click", () => showStep(1));
 $("#details-next").addEventListener("click", () => {
-  if (!resultData().speech.trim()) return;
+  const data = resultData();
+  if (!data.speech) return;
   renderResult();
   showStep(3);
-  if (!requestCompleted) {
-    requestCompleted = true;
-    trackEvent("request_complete");
-  }
 });
-$("#result-edit").addEventListener("click", () => showStep(2));
+$("#result-edit").addEventListener("click", () => { renderAll(); showStep(2); });
+$("#result-reset").addEventListener("click", () => confirmReset("사진과 모든 선택 내용을 지우고 새 요청서를 만드시겠어요?", resetAll));
 $("#result-copy").addEventListener("click", copySpeech);
 $("#result-save").addEventListener("click", saveImage);
 window.addEventListener("pagehide", clearPhoto);
