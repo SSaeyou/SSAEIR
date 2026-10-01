@@ -231,20 +231,6 @@ function renderDetails() {
       toggle.setAttribute("aria-controls", `detail-${def.id}`);
       toggle.addEventListener("click", () => setPanel(`detail-${def.id}`));
       top.append(heading, value, toggle);
-      if (option && option.key !== "unknown") {
-        const priority = document.createElement("button"); priority.type = "button";
-        priority.className = "priority-toggle";
-        priority.textContent = state.details[def.id]?.priority === "must" ? "꼭 전달 ✓" : "꼭 전달";
-        priority.setAttribute("aria-pressed", String(state.details[def.id]?.priority === "must"));
-        priority.addEventListener("click", () => {
-          const stored = state.details[def.id] || {};
-          stored.priority = stored.priority === "must" ? "soft" : "must";
-          state.details[def.id] = stored;
-          priority.textContent = stored.priority === "must" ? "꼭 전달 ✓" : "꼭 전달";
-          priority.setAttribute("aria-pressed", String(stored.priority === "must"));
-        });
-        top.append(priority);
-      }
       panel.append(top);
       const body = document.createElement("div"); body.id = `detail-${def.id}`;
       body.className = "detail-body"; body.hidden = openPanel !== `detail-${def.id}`;
@@ -254,7 +240,7 @@ function renderDetails() {
         const item = makeChoice(entry, current === entry.key, "radio", `detail-${def.id}`);
         item.querySelector("input").addEventListener("change", () => {
           if (def.id === "style") state.style = entry.key;
-          state.details[def.id] = {...state.details[def.id], value:entry.key, priority:state.details[def.id]?.priority || "soft"};
+          state.details[def.id] = {value:entry.key};
           openPanel = entry.key === "custom" ? `detail-${def.id}` : "";
           renderAll();
           if (entry.key === "custom") $("#custom-style")?.focus();
@@ -316,14 +302,12 @@ function resultData() {
   const picked = Object.fromEntries(defs.map((def) => [def.id, selectedOption(def)]));
   const selectedAvoids = availableAvoids().filter((item) => state.avoids.has(item.id));
   const sentences = [];
-  const important = [];
   const usedAvoids = new Set();
   const style = styleText();
   const services = ["cut", "perm", "downperm"].filter((id) => state.services.has(id));
   const downArea = picked.downArea?.key;
   const downPlace = {side:"옆머리", back:"뒷머리", both:"옆머리와 뒷머리"}[downArea];
   const lift = {low:"조금", medium:"", high:"많이"}[picked.sideLift?.key];
-  const liftReason = picked.sideLift ? `옆머리가 ${lift ? lift + " " : ""}뜨는 편이라 ` : "";
   const joinServices = (items) => items.length === 1 ? serviceNames[items[0]] :
     items.length === 2 ? `${serviceNames[items[0]]}${items[0] === "cut" ? "와" : "과"} ${serviceNames[items[1]]}` :
     "커트와 펌, 다운펌";
@@ -332,7 +316,6 @@ function resultData() {
     const intro = others.length ? `${style}${particle(style)} 커트하고, ${joinServices(others)}도 함께 하고 싶어요.` :
       `${style}${particle(style)} 커트하고 싶어요.`;
     sentences.push(intro);
-    if (state.details.style?.priority === "must") important.push(intro);
   } else if (services.length === 1 && downPlace) {
     sentences.push(`${downPlace}에 다운펌을 하고 싶어요.`);
   } else if (services.length === 1 && services[0] === "perm" && picked.permArea) {
@@ -347,7 +330,6 @@ function resultData() {
     const combined = related && speech.endsWith("주세요.") && !speech.endsWith("말아주세요.") ? speech.slice(0, -4) + "주시고, " + related.short : speech;
     if (related && combined !== speech) usedAvoids.add(related.id);
     sentences.push(combined);
-    if (state.details[id]?.priority === "must") important.push(speech);
   };
   if (picked.photoFeel) add("photoFeel", picked.photoFeel.speech);
   for (const id of ["cutLength","frontShape","side","back","layers","thinning","twoBlock","faceLine"]) add(id, picked[id]?.speech);
@@ -355,11 +337,9 @@ function resultData() {
   const curl = picked.curlSize && picked.curlStrength ? `${picked.curlSize.speech}이 ${picked.curlStrength.speech} 해주세요.` :
     picked.curlSize ? `${picked.curlSize.speech}로 해주세요.` : picked.curlStrength ? `컬이 ${picked.curlStrength.speech} 해주세요.` : "";
   add("curlSize", curl);
-  if (state.details.curlStrength?.priority === "must" && curl) important.push(curl);
   const volume = picked.volumePosition && picked.volumeLevel ? `${picked.volumePosition.speech} 볼륨은 ${picked.volumeLevel.speech}` :
     picked.volumePosition ? `${picked.volumePosition.speech} 볼륨을 살려주세요.` : picked.volumeLevel ? `볼륨은 ${picked.volumeLevel.speech}` : "";
   add("volumePosition", volume);
-  if (state.details.volumeLevel?.priority === "must" && volume) important.push(volume);
   if (picked.downArea && services.length !== 1) add("downArea", `다운펌은 ${downPlace}에 해주세요.`);
   const flatSide = selectedAvoids.find((item) => item.id === "flatSide");
   const strongDown = selectedAvoids.find((item) => item.id === "strongDown");
@@ -372,7 +352,6 @@ function resultData() {
     }
     if (picked.sideLift) request = `옆머리가 ${lift ? lift + " " : ""}뜨는 편인데, ` + request;
     sentences.push(request);
-    if (state.details.downStrength?.priority === "must") important.push(request);
     if (natural && strongDown) usedAvoids.add(strongDown.id);
   } else if (picked.sideLift) add("sideLift", picked.sideLift.speech);
   const wantsEase = selectedAvoids.some((item) => ["hardStyling", "femaleHardStyling"].includes(item.id));
@@ -387,7 +366,7 @@ function resultData() {
   }
   const memo = state.memo.trim();
   if (memo) sentences.push(memo);
-  return {speech:sentences.join(" ").replace(/[ \t]+/g, " ").trim(), important:[...new Set(important)], avoids:[...new Set(selectedAvoids.map((item) => item.speech))], memo};
+  return {speech:sentences.join(" ").replace(/[ \t]+/g, " ").trim(), avoids:[...new Set(selectedAvoids.map((item) => item.speech))], memo};
 }
 function fillList(sectionId, listId, values) {
   const section = $(sectionId); section.hidden = values.length === 0;
@@ -397,7 +376,6 @@ function fillList(sectionId, listId, values) {
 function renderResult() {
   const data = resultData();
   $("#result-speech").textContent = data.speech;
-  fillList("#result-important-section", "#result-important", data.important);
   fillList("#result-avoid-section", "#result-avoid", data.avoids);
   $("#result-memo-section").hidden = !data.memo;
   $("#result-memo").textContent = data.memo;
@@ -505,7 +483,6 @@ function saveImage() {
       const lines = values.flatMap((value) => wrapText(ctx, value, contentWidth - 26));
       blocks.push({heading, lines});
     };
-    addBlock("꼭 말할 내용", data.important);
     addBlock("피하고 싶은 부분", data.avoids);
     if (data.memo) addBlock("추가 메모", [data.memo]);
     const speechHeight = speechLines.length * 64;
@@ -565,7 +542,7 @@ function resetStyleState() {
   openPanel = "";
   $("#result-speech").textContent = "";
   $("#action-status").textContent = "";
-  for (const id of ["result-important-section","result-avoid-section","result-memo-section","result-photo-section"]) $("#" + id).hidden = true;
+  for (const id of ["result-avoid-section","result-memo-section","result-photo-section"]) $("#" + id).hidden = true;
 }
 function resetAll() {
   clearPhoto();
@@ -601,7 +578,7 @@ $("#start-next").addEventListener("click", () => {
   showStep(2);
 });
 $("#memo").addEventListener("input", (event) => { state.memo = event.target.value; });
-$("#details-reset").addEventListener("click", () => confirmReset("스타일 선택, 피하고 싶은 부분, 메모와 중요도를 지우시겠어요? 성별·시술·사진은 유지됩니다.", () => {
+$("#details-reset").addEventListener("click", () => confirmReset("스타일 선택, 피하고 싶은 부분과 메모를 지우시겠어요? 성별·시술·사진은 유지됩니다.", () => {
   resetStyleState(); renderAll(); showStep(2);
 }));
 $("#details-back").addEventListener("click", () => showStep(1));

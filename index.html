@@ -22,14 +22,14 @@
       <section id="step-home" class="screen home-screen" aria-labelledby="home-title">
         <div class="home-hero">
           <p class="eyebrow">SSAEIR</p>
-          <h1 id="home-title" tabindex="-1">미용실에서 하고 싶은 말을 정리해 보세요.</h1>
-          <p>원하는 스타일을 골라두면, 미용실에서 보여주거나 읽을 수 있는 요청문으로 정리해 드려요.</p>
+          <h1 id="home-title" tabindex="-1">원하는 머리, 편하게 말해보세요.</h1>
+          <p>원하는 스타일을 골라 미용실에서 바로 보여줄 요청문을 만들어 보세요.</p>
           <button id="home-start" class="button button-primary" type="button">요청서 만들기</button>
         </div>
         <div class="home-info">
           <h2>이렇게 사용해요</h2>
           <ol><li>시술을 고르고</li><li>원하는 부분과 피하고 싶은 부분을 선택한 뒤</li><li>완성된 문장을 확인하세요.</li></ol>
-          <p>사진은 선택 사항이에요. 선택한 사진과 작성 내용은 서버로 보내지 않아요.</p>
+          <p>참고사진은 선택 사항이에요. 저장하는 이미지에는 넣지 않아요.</p>
         </div>
       </section>
       <nav class="steps" aria-label="진행 단계" hidden>
@@ -75,7 +75,7 @@
             <label class="button button-secondary file-button">참고사진 선택<input id="photo-input" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" aria-describedby="photo-help"></label>
             <button id="photo-clear" class="button button-plain" type="button">사진 없이 진행하기</button>
           </div>
-          <p id="photo-help" class="field-help">JPEG, PNG, WebP 파일 한 장을 15MB 이하로 사용할 수 있어요. HEIC·HEIF 사진은 JPEG로 변환해 선택해 주세요. 선택한 사진은 서버로 전송되지 않고, 현재 화면에서만 사용돼요.</p>
+          <p id="photo-help" class="field-help">JPEG, PNG, WebP 파일 한 장을 15MB 이하로 사용할 수 있어요. HEIC·HEIF 사진은 JPEG로 변환해 선택해 주세요. 선택한 사진은 현재 화면에서만 사용돼요.</p>
           <div id="photo-preview-wrap" class="photo-preview" hidden>
             <img id="photo-preview" alt="선택한 참고사진 미리보기">
             <span id="photo-name"></span>
@@ -120,7 +120,6 @@
           <div class="result-heading">이렇게 말씀해보세요</div>
           <p id="result-speech" class="result-speech"></p>
         </div>
-        <div id="result-important-section" class="card result-section" hidden><h2>꼭 전달할 내용</h2><ul id="result-important"></ul></div>
         <div id="result-avoid-section" class="card result-section" hidden><h2>피하고 싶은 부분</h2><ul id="result-avoid"></ul></div>
         <div id="result-memo-section" class="card result-section" hidden><h2>추가로 전할 내용</h2><p id="result-memo" class="preserve-lines"></p></div>
         <div id="result-photo-section" class="card result-section" hidden><h2>참고사진</h2><img id="result-photo" alt="선택한 참고사진"><p class="field-help">사진은 이 화면에서만 보여드려요. 저장하는 이미지에는 포함되지 않아요.</p></div>
