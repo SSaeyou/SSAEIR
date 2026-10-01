@@ -1,0 +1,15 @@
+PROJECT_STATUS.md
+.env
+.env.*
+*.key
+*.pem
+*.log
+_preview_*.png
+Thumbs.db
+__pycache__/
+_site/
+public-stats.json
+_preview_test.html
+_preview_test.js
+*service-account*.json
+*credentials*.json

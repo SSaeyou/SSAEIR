@@ -1,0 +1,54 @@
+name: Deploy SSAEIR Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    # 00:23, 06:23, 12:23, 18:23 Asia/Seoul
+    - cron: "23 3,9,15,21 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ssaeir-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare public site
+        run: |
+          mkdir -p _site
+          cp index.html styles.css app.js analytics.js site-config.js admin.html admin.js privacy.html _site/
+          touch _site/.nojekyll
+      - name: Build public counts when GA4 is configured
+        env:
+          GA_PROPERTY_ID: ${{ vars.GA_PROPERTY_ID }}
+          GA_STATS_START_DATE: ${{ vars.GA_STATS_START_DATE }}
+          GA_PUBLIC_READY: ${{ vars.GA_PUBLIC_READY }}
+          GA_SERVICE_ACCOUNT_JSON: ${{ secrets.GA_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ "$GA_PUBLIC_READY" = "true" ] && [ -n "$GA_PROPERTY_ID" ] && [ -n "$GA_STATS_START_DATE" ] && [ -n "$GA_SERVICE_ACCOUNT_JSON" ]; then
+            python -m pip install --disable-pip-version-check --quiet google-auth requests
+            python scripts/build_public_stats.py
+          fi
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

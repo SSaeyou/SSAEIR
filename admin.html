@@ -1,0 +1,68 @@
+﻿<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' https://accounts.google.com/gsi/style; frame-src https://accounts.google.com; connect-src 'self' https://analyticsdata.googleapis.com https://accounts.google.com; img-src 'self' data: https://accounts.google.com; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <title>SSAEIR 관리자 통계</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./site-config.js" defer></script>
+  <script src="./admin.js" defer></script>
+</head>
+<body>
+  <div class="site-shell">
+    <header class="site-header">
+      <a class="brand brand-link" href="./index.html">SSAEIR <span>쎄어</span></a>
+      <p>관리자 이용 통계</p>
+    </header>
+    <main class="admin-main">
+      <div class="screen-intro">
+        <p class="eyebrow">ADMIN</p>
+        <h1>이용 통계</h1>
+        <p>소유자 Google 계정의 GA4 조회 권한으로 확인합니다.</p>
+      </div>
+      <div class="card">
+        <p id="admin-status" role="status" aria-live="polite">설정을 확인하고 있습니다.</p>
+        <div class="screen-actions">
+          <button id="admin-login" class="button button-primary" type="button" disabled>Google 계정으로 조회</button>
+          <button id="admin-logout" class="button button-secondary" type="button" hidden>조회 종료</button>
+        </div>
+      </div>
+      <section id="admin-report" hidden>
+        <div class="card">
+          <label class="section-label" for="report-period">조회 기간</label>
+          <select id="report-period">
+            <option value="6daysAgo">최근 7일</option>
+            <option value="29daysAgo" selected>최근 30일</option>
+            <option value="89daysAgo">최근 90일</option>
+          </select>
+          <p class="field-help">GA4 속성의 한국 시간 기준입니다. GA4 처리 지연으로 최근 수치는 바뀔 수 있습니다.</p>
+          <div class="admin-metrics">
+            <div><span>사용자 수</span><strong id="admin-users">-</strong></div>
+            <div><span>방문 수 · 세션</span><strong id="admin-sessions">-</strong></div>
+            <div><span>조회 수</span><strong id="admin-views">-</strong></div>
+          </div>
+        </div>
+        <div class="card">
+          <h2>기능 이용</h2>
+          <div class="admin-metrics">
+            <div><span>요청 작성 시작</span><strong id="event-start">-</strong></div>
+            <div><span>요청문 생성 완료</span><strong id="event-complete">-</strong></div>
+            <div><span>문장 복사 성공</span><strong id="event-copy">-</strong></div>
+            <div><span>이미지 다운로드 실행</span><strong id="event-image">-</strong></div>
+          </div>
+          <p class="field-help">이미지가 기기에 실제 저장됐는지는 확인할 수 없습니다.</p>
+        </div>
+        <div class="card">
+          <h2>유입 경로</h2>
+          <div class="table-wrap">
+            <table><thead><tr><th scope="col">소스 / 매체</th><th scope="col">세션</th></tr></thead><tbody id="traffic-rows"></tbody></table>
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer class="site-footer"><a href="./index.html">사이트로 돌아가기</a> · <a href="./privacy.html">개인정보 안내</a></footer>
+  </div>
+</body>
+</html>
