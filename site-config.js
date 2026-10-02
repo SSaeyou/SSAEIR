@@ -1,9 +1,9 @@
 "use strict";
 
-// 이 파일의 값은 공개됩니다. 비밀번호나 Google 인증 토큰을 넣지 마세요.
-// 설정을 마치기 전에는 모든 분석 기능이 비활성입니다.
+// Cloudflare Web Analytics 사이트 토큰은 공개 식별자입니다. API 키나 비밀번호는 넣지 마세요.
+// 실제 수신 확인 전까지 통계는 비활성 상태로 둡니다.
 window.SSAEIR_CONFIG = Object.freeze({
   siteOrigin: "https://ssaeyou.github.io",
-  privacyReady: false,
-  measurementId: "G-656QZKTM22"
+  analyticsReady: false,
+  cloudflareToken: ""
 });
